@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const admin = createSupabaseAdminClient();
   const { data: organization, error } = await admin
-    .from("organizations")
+    .from("social_ai_organizations")
     .insert({ name, slug: slugify(name) })
     .select("id")
     .single();
@@ -34,14 +34,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(error?.message || "workspace")}`, request.url), 303);
   }
 
-  const { error: membershipError } = await admin.from("organization_members").insert({
+  const { error: membershipError } = await admin.from("social_ai_organization_members").insert({
     organization_id: organization.id,
     user_id: user.id,
     role: "owner",
   });
 
   if (membershipError) {
-    await admin.from("organizations").delete().eq("id", organization.id);
+    await admin.from("social_ai_organizations").delete().eq("id", organization.id);
     return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(membershipError.message)}`, request.url), 303);
   }
 
