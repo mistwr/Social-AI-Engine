@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const { data: memberships } = await supabase
-    .from("organization_members")
+    .from("social_ai_organization_members")
     .select("organization_id,role")
     .eq("user_id", user.id);
 
@@ -29,17 +29,17 @@ export default async function DashboardPage() {
   let automations: Automation[] = [];
 
   if (ids.length) {
-    const { data: orgs } = await supabase.from("organizations").select("id,name,slug").in("id", ids).order("created_at");
+    const { data: orgs } = await supabase.from("social_ai_organizations").select("id,name,slug").in("id", ids).order("created_at");
     workspaces = (orgs || []) as Workspace[];
 
     const { data: accounts } = await supabase
-      .from("social_accounts")
+      .from("social_ai_social_accounts")
       .select("id,organization_id,provider,display_name,status")
       .in("organization_id", ids);
     socialAccounts = (accounts || []) as SocialAccount[];
 
     const { data: automationRows } = await supabase
-      .from("automations")
+      .from("social_ai_automations")
       .select("id,organization_id,social_account_id,name,enabled,trigger_config,action_config")
       .in("organization_id", ids)
       .order("created_at", { ascending: false });
