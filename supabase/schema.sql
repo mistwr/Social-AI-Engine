@@ -27,6 +27,14 @@ create table public.social_accounts (
   unique (provider, external_account_id)
 );
 
+-- Server-only encrypted credentials. No client policy is intentionally defined.
+create table public.social_credentials (
+  social_account_id uuid primary key references public.social_accounts(id) on delete cascade,
+  token_ciphertext text not null,
+  expires_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
 create table public.automations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -80,6 +88,7 @@ create table public.leads (
 alter table public.organizations enable row level security;
 alter table public.organization_members enable row level security;
 alter table public.social_accounts enable row level security;
+alter table public.social_credentials enable row level security;
 alter table public.automations enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
@@ -108,5 +117,6 @@ create policy "members manage leads" on public.leads for all to authenticated
 using (exists (select 1 from public.organization_members m where m.organization_id = leads.organization_id and m.user_id = (select auth.uid())))
 with check (exists (select 1 from public.organization_members m where m.organization_id = leads.organization_id and m.user_id = (select auth.uid())));
 
+revoke all on public.social_credentials from anon, authenticated;
 grant select on public.organizations, public.organization_members, public.social_accounts, public.conversations, public.messages to authenticated;
 grant select, insert, update, delete on public.automations, public.leads to authenticated;
