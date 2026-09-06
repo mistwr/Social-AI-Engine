@@ -27,7 +27,6 @@ create table public.social_accounts (
   unique (provider, external_account_id)
 );
 
--- Server-only encrypted credentials. No client policy is intentionally defined.
 create table public.social_credentials (
   social_account_id uuid primary key references public.social_accounts(id) on delete cascade,
   token_ciphertext text not null,
@@ -45,6 +44,20 @@ create table public.automations (
   action_config jsonb not null default '{}'::jsonb,
   enabled boolean not null default true,
   created_at timestamptz not null default now()
+);
+
+create table public.automation_runs (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  automation_id uuid not null references public.automations(id) on delete cascade,
+  social_account_id uuid not null references public.social_accounts(id) on delete cascade,
+  external_event_id text not null,
+  trigger_type text not null,
+  status text not null default 'processing',
+  result jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (automation_id, external_event_id)
 );
 
 create table public.conversations (
@@ -90,6 +103,7 @@ alter table public.organization_members enable row level security;
 alter table public.social_accounts enable row level security;
 alter table public.social_credentials enable row level security;
 alter table public.automations enable row level security;
+alter table public.automation_runs enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.leads enable row level security;
@@ -107,6 +121,9 @@ create policy "members manage automations" on public.automations for all to auth
 using (exists (select 1 from public.organization_members m where m.organization_id = automations.organization_id and m.user_id = (select auth.uid())))
 with check (exists (select 1 from public.organization_members m where m.organization_id = automations.organization_id and m.user_id = (select auth.uid())));
 
+create policy "members read automation runs" on public.automation_runs for select to authenticated
+using (exists (select 1 from public.organization_members m where m.organization_id = automation_runs.organization_id and m.user_id = (select auth.uid())));
+
 create policy "members read conversations" on public.conversations for select to authenticated
 using (exists (select 1 from public.organization_members m where m.organization_id = conversations.organization_id and m.user_id = (select auth.uid())));
 
@@ -118,5 +135,5 @@ using (exists (select 1 from public.organization_members m where m.organization_
 with check (exists (select 1 from public.organization_members m where m.organization_id = leads.organization_id and m.user_id = (select auth.uid())));
 
 revoke all on public.social_credentials from anon, authenticated;
-grant select on public.organizations, public.organization_members, public.social_accounts, public.conversations, public.messages to authenticated;
+grant select on public.organizations, public.organization_members, public.social_accounts, public.automation_runs, public.conversations, public.messages to authenticated;
 grant select, insert, update, delete on public.automations, public.leads to authenticated;
