@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.redirect(new URL("/login", request.url));
 
   const { data: membership } = await supabase
-    .from("organization_members")
+    .from("social_ai_organization_members")
     .select("organization_id")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
