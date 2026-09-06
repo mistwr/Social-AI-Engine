@@ -237,7 +237,7 @@ async function processMessage(entryId: string | undefined, event: MessagingEvent
     }).select("id").single();
     if (error || !createdLead) throw error || new Error("Could not create Instagram DM lead");
     leadId = createdLead.id;
-  } else {
+  } else if (existingLead) {
     const metadata = (existingLead.metadata || {}) as Record<string, unknown>;
     const nextName = existingLead.name || detectedName;
     const nextPhone = existingLead.phone || phone;
