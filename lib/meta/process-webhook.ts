@@ -49,7 +49,7 @@ async function processComment(entry: MetaEntry) {
   if (!entry.id || !entry.value?.id || !entry.value.text) return;
   const admin = createSupabaseAdminClient();
   const { data: account } = await admin
-    .from("social_accounts")
+    .from("social_ai_social_accounts")
     .select("id,organization_id,external_account_id")
     .eq("provider", "instagram")
     .eq("external_account_id", entry.id)
@@ -57,7 +57,7 @@ async function processComment(entry: MetaEntry) {
   if (!account) return;
 
   const { data: automations } = await admin
-    .from("automations")
+    .from("social_ai_automations")
     .select("id,trigger_config,action_config")
     .eq("organization_id", account.organization_id)
     .eq("trigger_type", "comment_keyword")
@@ -75,7 +75,7 @@ async function processComment(entry: MetaEntry) {
   const replyText = String(action.text || "").trim().slice(0, 1000);
   if (action.type !== "private_reply" || !replyText) return;
 
-  const { data: run, error: runError } = await admin.from("automation_runs").insert({
+  const { data: run, error: runError } = await admin.from("social_ai_automation_runs").insert({
     organization_id: account.organization_id,
     automation_id: match.automation.id,
     social_account_id: account.id,
@@ -90,7 +90,7 @@ async function processComment(entry: MetaEntry) {
 
   try {
     const { data: credential, error: credentialError } = await admin
-      .from("social_credentials")
+      .from("social_ai_social_credentials")
       .select("token_ciphertext,expires_at")
       .eq("social_account_id", account.id)
       .single();
@@ -98,13 +98,13 @@ async function processComment(entry: MetaEntry) {
     if (credential.expires_at && Date.parse(credential.expires_at) <= Date.now()) throw new Error("Instagram token expired");
 
     const result = await sendPrivateReply(account.external_account_id, entry.value.id, replyText, decryptSecret(credential.token_ciphertext));
-    await admin.from("automation_runs").update({
+    await admin.from("social_ai_automation_runs").update({
       status: "done",
       result: { keyword: match.keyword, recipient_id: result.recipient_id, message_id: result.message_id },
       updated_at: new Date().toISOString(),
     }).eq("id", run.id);
 
-    await admin.from("leads").insert({
+    await admin.from("social_ai_leads").insert({
       organization_id: account.organization_id,
       name: entry.value.from?.username || null,
       source: "instagram_comment",
@@ -120,7 +120,7 @@ async function processComment(entry: MetaEntry) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Automation failed";
-    await admin.from("automation_runs").update({
+    await admin.from("social_ai_automation_runs").update({
       status: "error",
       result: { keyword: match.keyword, error: message },
       updated_at: new Date().toISOString(),
