@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 function slugify(value: string) {
   const base = value
@@ -21,28 +20,20 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const name = String(form.get("name") || "").trim().slice(0, 120);
-  if (name.length < 2) return NextResponse.redirect(new URL("/dashboard?error=workspace-name", request.url), 303);
-
-  const admin = createSupabaseAdminClient();
-  const { data: organization, error } = await admin
-    .from("social_ai_organizations")
-    .insert({ name, slug: slugify(name) })
-    .select("id")
-    .single();
-
-  if (error || !organization) {
-    return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(error?.message || "workspace")}`, request.url), 303);
+  if (name.length < 2) {
+    return NextResponse.redirect(new URL("/dashboard?error=workspace-name", request.url), 303);
   }
 
-  const { error: membershipError } = await admin.from("social_ai_organization_members").insert({
-    organization_id: organization.id,
-    user_id: user.id,
-    role: "owner",
+  const { error } = await supabase.rpc("social_ai_create_workspace", {
+    p_name: name,
+    p_slug: slugify(name),
   });
 
-  if (membershipError) {
-    await admin.from("social_ai_organizations").delete().eq("id", organization.id);
-    return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(membershipError.message)}`, request.url), 303);
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`/dashboard?error=${encodeURIComponent(error.message || "workspace")}`, request.url),
+      303,
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard?created=1", request.url), 303);
