@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMetaSignature } from "@/lib/meta/signature";
+import { processMetaWebhook } from "@/lib/meta/process-webhook";
 
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("hub.mode");
@@ -20,8 +21,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const payload = JSON.parse(rawBody);
-  // V0.1: acknowledge quickly. Next step: persist event and enqueue processing.
-  console.log("META_WEBHOOK", JSON.stringify(payload));
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  try {
+    await processMetaWebhook(payload as Parameters<typeof processMetaWebhook>[0]);
+  } catch (error) {
+    console.error("META_WEBHOOK_PROCESSING_FAILED", error);
+  }
+
   return NextResponse.json({ received: true });
 }
