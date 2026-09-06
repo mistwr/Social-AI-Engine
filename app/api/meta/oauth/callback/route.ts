@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const admin = createSupabaseAdminClient();
     const { data: membership } = await admin
-      .from("organization_members")
+      .from("social_ai_organization_members")
       .select("organization_id")
       .eq("organization_id", state.organizationId)
       .eq("user_id", state.userId)
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (!externalAccountId) throw new Error("Instagram account id missing");
 
     const { data: existing } = await admin
-      .from("social_accounts")
+      .from("social_ai_social_accounts")
       .select("id,organization_id")
       .eq("provider", "instagram")
       .eq("external_account_id", externalAccountId)
@@ -73,13 +73,13 @@ export async function GET(request: NextRequest) {
 
     let socialAccountId = existing?.id as string | undefined;
     if (socialAccountId) {
-      const { error } = await admin.from("social_accounts").update({
+      const { error } = await admin.from("social_ai_social_accounts").update({
         display_name: profile.username || profile.name || "Instagram",
         status: "connected",
       }).eq("id", socialAccountId);
       if (error) throw error;
     } else {
-      const { data: account, error } = await admin.from("social_accounts").insert({
+      const { data: account, error } = await admin.from("social_ai_social_accounts").insert({
         organization_id: state.organizationId,
         provider: "instagram",
         external_account_id: externalAccountId,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     const expiresAt = new Date(Date.now() + (longData.expires_in || 5_184_000) * 1000).toISOString();
-    const { error: credentialError } = await admin.from("social_credentials").upsert({
+    const { error: credentialError } = await admin.from("social_ai_social_credentials").upsert({
       social_account_id: socialAccountId,
       token_ciphertext: encryptSecret(longData.access_token),
       expires_at: expiresAt,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     const subscribeResponse = await fetch(subscribeUrl, { method: "POST", cache: "no-store" });
     const subscribeData = (await subscribeResponse.json()) as { success?: boolean };
     const webhookStatus = subscribeResponse.ok && subscribeData.success ? "subscribed" : "needs_review";
-    await admin.from("social_accounts").update({ status: webhookStatus === "subscribed" ? "connected" : "connected_webhook_pending" }).eq("id", socialAccountId);
+    await admin.from("social_ai_social_accounts").update({ status: webhookStatus === "subscribed" ? "connected" : "connected_webhook_pending" }).eq("id", socialAccountId);
 
     return NextResponse.redirect(new URL(`/dashboard?instagram=${webhookStatus}`, request.url));
   } catch (error) {
