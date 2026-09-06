@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: membership } = await supabase
-    .from("organization_members")
+    .from("social_ai_organization_members")
     .select("organization_id")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   if (socialAccountId) {
     const { data: account } = await supabase
-      .from("social_accounts")
+      .from("social_ai_social_accounts")
       .select("id")
       .eq("id", socialAccountId)
       .eq("organization_id", organizationId)
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!account) return NextResponse.redirect(new URL("/dashboard?error=invalid-channel", request.url), 303);
   }
 
-  const { error } = await supabase.from("automations").insert({
+  const { error } = await supabase.from("social_ai_automations").insert({
     organization_id: organizationId,
     social_account_id: socialAccountId,
     name: `Comentário → DM: ${keywords.slice(0, 3).join(", ")}`,
