@@ -21,7 +21,7 @@ create table public.social_accounts (
   provider text not null check (provider in ('instagram','facebook')),
   external_account_id text not null,
   display_name text,
-  access_token_encrypted text,
+  credential_ref text,
   status text not null default 'pending',
   created_at timestamptz not null default now(),
   unique (provider, external_account_id)
@@ -85,11 +85,11 @@ alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.leads enable row level security;
 
+create policy "member reads own memberships" on public.organization_members for select to authenticated
+using (user_id = (select auth.uid()));
+
 create policy "members read organizations" on public.organizations for select to authenticated
 using (exists (select 1 from public.organization_members m where m.organization_id = organizations.id and m.user_id = (select auth.uid())));
-
-create policy "members read memberships" on public.organization_members for select to authenticated
-using (user_id = (select auth.uid()) or exists (select 1 from public.organization_members m where m.organization_id = organization_members.organization_id and m.user_id = (select auth.uid()) and m.role in ('owner','admin')));
 
 create policy "members read social accounts" on public.social_accounts for select to authenticated
 using (exists (select 1 from public.organization_members m where m.organization_id = social_accounts.organization_id and m.user_id = (select auth.uid())));
